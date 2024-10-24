@@ -1,7 +1,6 @@
 # Code Used from Google workspace quick start: https://developers.google.com/calendar/api/quickstart/python
 # Code Used from create event devlopers guide: https://developers.google.com/calendar/api/guides/create-events
 
-
 import datetime
 import os.path
 
@@ -10,13 +9,14 @@ from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
+from datetime import datetime
 
 # If modifying these scopes, delete the file token.json.
 SCOPES = ["https://www.googleapis.com/auth/calendar"]
 
 
 def main():
-    query = input("What can I help you with?")
+    query = input("What can I help you with?\n").lower().strip().replace(" ", "")
     """Shows basic usage of the Google Calendar API.
     Prints the start and name of the next 10 events on the user's calendar.
     """
@@ -38,7 +38,7 @@ def main():
         # Save the credentials for the next run
         with open("token.json", "w") as token:
             token.write(creds.to_json())
-    if query == "Check Upcoming Events": 
+    if query == "checkupcomingevents": 
         try:
             service = build("calendar", "v3", credentials=creds)
 
@@ -70,37 +70,63 @@ def main():
         except HttpError as error:
             print(f"An error occurred: {error}")
 
-    elif query == "Add Event":
+    elif query == "addevent":
         service = build("calendar", "v3", credentials=creds)
-        summary = input("What is the name of the event?")
-        location = input("Where is the event?")
-        description = input("What is the description of the event?")
+        summary = input("Enter the event name:\n")
+        location = input("Enter the event location (or leave blank):\n")
+        description = input("Enter a description for the event (or leave blank):\n")
+
+        # Ask if the event is a multiple-day event
+        is_multiple_day = input("Is this a multiple-day event? (yes/no):\n").lower().strip()
+
+        if is_multiple_day == "yes":
+            start_date = input("Enter the start date (format: YYYY-MM-DD):\n")
+            start_time = input("Enter the start time (format: HH:MM, 24-hour format):\n")
+        
+            end_date = input("Enter the end date (format: YYYY-MM-DD):\n")
+            end_time = input("Enter the end time (format: HH:MM, 24-hour format):\n")
+        else:
+            start_date = input("Enter the event date (format: YYYY-MM-DD):\n")
+            start_time = input("Enter the start time (format: HH:MM, 24-hour format):\n")
+
+            end_date = start_date
+            end_time = input("Enter the end time (format: HH:MM, 24-hour format):\n")
+            
+        start_datetime = f"{start_date}T{start_time}:00"
+        end_datetime = f"{end_date}T{end_time}:00"
+
+        start_datetime = datetime.strptime(start_datetime, "%Y-%m-%dT%H:%M:%S")
+        end_datetime = datetime.strptime(end_datetime, "%Y-%m-%dT%H:%M:%S")
+
+        # Ask if they want to invite people 
+        has_attendees = input("Do you want to invite people to the event? (yes/no):\n").lower().strip()
+        attendees = []
+        if has_attendees == "yes":
+            attendee_emails = input("Enter emails of attendees (separate list with commas):\n").strip()
+            attendees = [{'email': email.strip()} for email in attendee_emails.split(",")]
+            
+            attendee_emails.split(",")
+
         event = {
-    'summary': summary,
-    'location': location,
-    'description': description,
-    'start': {
-        'dateTime': '2025-05-28T09:00:00-07:00',
-        'timeZone': 'America/Los_Angeles',
-    },
-    'end': {
-        'dateTime': '2025-05-28T17:00:00-07:00',
-        'timeZone': 'America/Los_Angeles',
-    },
-    'recurrence': [
-        'RRULE:FREQ=DAILY;COUNT=2'
-    ],
-    'attendees': [
-        {'email': 'lpage@example.com'},
-        {'email': 'sbrin@example.com'},
-    ],
-    'reminders': {
-        'useDefault': False,
-        'overrides': [
-        {'method': 'email', 'minutes': 24 * 60},
-        {'method': 'popup', 'minutes': 10},
-        ],
-    },
+            'summary': summary,
+            'location': location if location else None,
+            'description': description if description else None,
+            'start': {
+                'dateTime': start_datetime.isoformat(), 
+                'timeZone': 'America/Los_Angeles', # change time zone as needed
+            },
+            'end': {
+                'dateTime': end_datetime.isoformat(), 
+                'timeZone': 'America/Los_Angeles',
+            },
+            'attendees': attendees,
+            'reminders': {
+                'useDefault': False,
+                'overrides': [
+                {'method': 'email', 'minutes': 24 * 60},
+                {'method': 'popup', 'minutes': 10},
+                ],
+        },
     }
 
         event = service.events().insert(calendarId='primary', body=event).execute()
